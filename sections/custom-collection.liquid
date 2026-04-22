@@ -3,10 +3,79 @@
 
 <div class="custom-collection-section">
 
-  <!-- Product container -->
-  <div id="product-container" class="product-grid" data-collection-handle="{{ collection.handle }}"></div>
+  <!-- 🔥 FILTER + SORT UI -->
+  <form method="get" id="collection-filters" class="collection-toolbar">
 
-  <!-- Loader OUTSIDE -->
+    <!-- Preserve existing query params -->
+    {% for param in request.params %}
+      {% unless param[0] == 'sort_by' or param[0] contains 'filter.' %}
+        <input type="hidden" name="{{ param[0] }}" value="{{ param[1] }}">
+      {% endunless %}
+    {% endfor %}
+
+    <!-- SORT -->
+    <select name="sort_by" onchange="this.form.submit()">
+      <option value="">Sort By</option>
+      <option value="best-selling" {% if request.params.sort_by == 'best-selling' %}selected{% endif %}>Best Selling</option>
+      <option value="price-ascending" {% if request.params.sort_by == 'price-ascending' %}selected{% endif %}>Price Low → High</option>
+      <option value="price-descending" {% if request.params.sort_by == 'price-descending' %}selected{% endif %}>Price High → Low</option>
+    </select>
+
+    <!-- PRICE FILTER -->
+    <input 
+      type="number" 
+      name="filter.v.price.gte" 
+      placeholder="Min Price"
+      value="{{ request.params['filter.v.price.gte'] }}"
+    >
+
+    <input 
+      type="number" 
+      name="filter.v.price.lte" 
+      placeholder="Max Price"
+      value="{{ request.params['filter.v.price.lte'] }}"
+    >
+
+    <button type="submit">Apply</button>
+
+  </form>
+
+  <!-- 🔥 SHOPIFY DEFAULT GRID (FIXED STRUCTURE) -->
+  <div id="shopify-default-grid" style="display:none;">
+    {% paginate collection.products by 20 %}
+      <div class="product-grid">
+        {% for product in collection.products %}
+          <div class="product-card">
+
+            <!-- ✅ SAME STRUCTURE AS CUSTOM GRID -->
+            <div class="product-image">
+              <img 
+                src="{{ product.featured_image | image_url: width: 400 }}"
+                width="400"
+                height="400"
+                alt="{{ product.title }}"
+                loading="lazy"
+              >
+            </div>
+
+            <div class="product-info">
+              <h3 class="product-title">{{ product.title }}</h3>
+              <span class="product-price">{{ product.price | money }}</span>
+            </div>
+
+          </div>
+        {% endfor %}
+      </div>
+    {% endpaginate %}
+  </div>
+
+  <!-- 🔥 CUSTOM GRID (INFINITE SCROLL) -->
+  <div id="product-container"
+       class="product-grid"
+       data-collection-handle="{{ collection.handle }}">
+  </div>
+
+  <!-- Loader -->
   <div class="loader" style="display:none;">
     Loading products...
   </div>
