@@ -112,7 +112,7 @@ sections/
 
 ## 🔗 Live Preview
 
-(Add your Shopify preview link here)
+(https://im2zaj-iu.myshopify.com/)
 
 ---
 
