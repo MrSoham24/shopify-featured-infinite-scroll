@@ -1,24 +1,33 @@
 document.addEventListener("DOMContentLoaded", () => {
     const container = document.getElementById('product-container');
     const loader = document.querySelector('.loader');
+    const defaultGrid = document.getElementById('shopify-default-grid');
 
     if (!container) return;
 
     const collectionHandle = container.dataset.collectionHandle;
 
-    // 🔥 SORTING & FILTER CHECK (FINAL FIX)
+    // 🔥 DETECT FILTER / SORT / SEARCH
     const searchParams = new URLSearchParams(window.location.search);
-    let hasSortOrFilter = false;
+
+    let hasCustomParams = false;
 
     for (const key of searchParams.keys()) {
-        if (key === 'sort_by' || key.startsWith('filter.')) {
-            hasSortOrFilter = true;
+        if (
+            key === 'sort_by' ||
+            key === 'q' ||
+            key.startsWith('filter.')
+        ) {
+            hasCustomParams = true;
             break;
         }
     }
 
-    if (hasSortOrFilter) {
+    // 👉 SHOW SHOPIFY DEFAULT IF FILTER/SORT ACTIVE
+    if (hasCustomParams) {
         if (loader) loader.style.display = 'none';
+        container.style.display = 'none';
+        if (defaultGrid) defaultGrid.style.display = 'block';
         return;
     }
 
@@ -30,7 +39,6 @@ document.addEventListener("DOMContentLoaded", () => {
     let hasMorePages = true;
 
     const renderedProductIds = new Set();
-
     const featuredProducts = [];
     const nonFeaturedQueue = [];
 
@@ -47,24 +55,17 @@ document.addEventListener("DOMContentLoaded", () => {
             const card = document.createElement('div');
             card.className = `product-card ${isFeatured ? 'featured' : ''}`;
 
-            let priceFormatted = "0.00";
-            if (product.variants && product.variants.length > 0) {
-                priceFormatted = parseFloat(product.variants[0].price).toFixed(2);
-            }
-
-            let imageUrl = 'https://via.placeholder.com/400';
-            if (product.images && product.images.length > 0) {
-                imageUrl = product.images[0].src;
-            }
+            let price = product.variants?.[0]?.price || "0.00";
+            let image = product.images?.[0]?.src || 'https://via.placeholder.com/400';
 
             card.innerHTML = `
                 <div class="product-image">
-                    <img src="${imageUrl}" alt="${product.title}" loading="lazy">
+                    <img src="${image}" alt="${product.title}" loading="lazy">
                     ${isFeatured ? '<span class="featured-badge">Featured</span>' : ''}
                 </div>
                 <div class="product-info">
                     <h3>${product.title}</h3>
-                    <span>₹${priceFormatted}</span>
+                    <span>₹${parseFloat(price).toFixed(2)}</span>
                 </div>
             `;
 
@@ -84,14 +85,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     async function fetchProducts(page) {
         try {
-            const response = await fetch(`/collections/${collectionHandle}/products.json?page=${page}&limit=20`);
-            if (!response.ok) throw new Error('Fetch error');
-
-            const data = await response.json();
+            const res = await fetch(`/collections/${collectionHandle}/products.json?page=${page}&limit=20`);
+            const data = await res.json();
             return data.products || [];
-
         } catch (error) {
-            console.error(error);
+            console.error("Fetch error:", error);
             return [];
         }
     }
@@ -99,25 +97,29 @@ document.addEventListener("DOMContentLoaded", () => {
     function processProducts(products) {
         products.forEach(product => {
 
+            // 🔥 SAFE FEATURED CHECK
             const tags = product.tags || [];
             const isFeatured = Array.isArray(tags)
                 ? tags.some(tag => tag.toLowerCase().includes('featured'))
                 : (typeof tags === 'string' && tags.toLowerCase().includes('featured'));
 
-            // 🔥 FINAL FEATURED FIX (WITH RETURN)
             if (isFeatured) {
-                if (featuredProducts.length < MAX_FEATURED) {
+                if (
+                    featuredProducts.length < MAX_FEATURED &&
+                    !renderedProductIds.has(product.id)
+                ) {
                     const exists = featuredProducts.some(p => p.id === product.id);
-                    if (!exists && !renderedProductIds.has(product.id)) {
+                    if (!exists) {
                         featuredProducts.push(product);
                     }
                 }
-                return; // 🚨 prevents leakage into normal queue
-            }
-
-            const existsInQueue = nonFeaturedQueue.some(p => p.id === product.id);
-            if (!existsInQueue && !renderedProductIds.has(product.id)) {
-                nonFeaturedQueue.push(product);
+            } else {
+                if (!renderedProductIds.has(product.id)) {
+                    const exists = nonFeaturedQueue.some(p => p.id === product.id);
+                    if (!exists) {
+                        nonFeaturedQueue.push(product);
+                    }
+                }
             }
         });
     }
@@ -126,11 +128,11 @@ document.addEventListener("DOMContentLoaded", () => {
         isFetching = true;
         showLoader();
 
-        // 🔥 COLLECT FEATURED ACROSS PAGES
+        // 🔥 COLLECT FEATURED FROM MULTIPLE PAGES
         while (featuredProducts.length < MAX_FEATURED && hasMorePages) {
             const products = await fetchProducts(currentPage);
 
-            if (products.length === 0) {
+            if (!products.length) {
                 hasMorePages = false;
                 break;
             }
@@ -142,9 +144,8 @@ document.addEventListener("DOMContentLoaded", () => {
         // 🔥 RENDER FEATURED FIRST
         renderProductsToDOM(featuredProducts, true);
 
-        // 🔥 THEN 5 NORMAL
-        const firstBatch = nonFeaturedQueue.splice(0, 5);
-        renderProductsToDOM(firstBatch, false);
+        // 🔥 THEN 5 NORMAL PRODUCTS
+        renderProductsToDOM(nonFeaturedQueue.splice(0, 5), false);
 
         initialLoadComplete = true;
         isFetching = false;
@@ -157,24 +158,22 @@ document.addEventListener("DOMContentLoaded", () => {
         isFetching = true;
         showLoader();
 
-        const toRender = [];
-        let loaded = 0;
+        const batch = [];
 
-        while (loaded < ITEMS_PER_SCROLL && hasMorePages) {
+        while (batch.length < ITEMS_PER_SCROLL && hasMorePages) {
 
-            while (nonFeaturedQueue.length > 0 && loaded < ITEMS_PER_SCROLL) {
+            while (nonFeaturedQueue.length && batch.length < ITEMS_PER_SCROLL) {
                 const product = nonFeaturedQueue.shift();
 
                 if (!renderedProductIds.has(product.id)) {
-                    toRender.push(product);
-                    loaded++;
+                    batch.push(product);
                 }
             }
 
-            if (loaded < ITEMS_PER_SCROLL) {
+            if (batch.length < ITEMS_PER_SCROLL) {
                 const products = await fetchProducts(currentPage);
 
-                if (products.length === 0) {
+                if (!products.length) {
                     hasMorePages = false;
                     break;
                 }
@@ -184,16 +183,17 @@ document.addEventListener("DOMContentLoaded", () => {
             }
         }
 
-        renderProductsToDOM(toRender, false);
+        renderProductsToDOM(batch, false);
 
         isFetching = false;
         hideLoader();
     }
 
+    // 🔥 SCROLL HANDLER (DEBOUNCED)
     let scrollTimeout;
 
     function handleScroll() {
-        if (isFetching || !hasMorePages || !initialLoadComplete) return;
+        if (!initialLoadComplete || isFetching || !hasMorePages) return;
 
         clearTimeout(scrollTimeout);
 
@@ -209,5 +209,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     window.addEventListener('scroll', handleScroll);
 
+    // 🔥 INIT
     initialLoad();
 });
