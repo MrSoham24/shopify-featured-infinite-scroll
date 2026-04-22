@@ -1,125 +1,154 @@
 # Shopify Featured Products with Infinite Scroll
 
-## 📌 Objective
+## 📌 Assignment Overview
 
-This project implements a custom Shopify collection page where:
+This project is built as part of a Shopify Developer assignment.
 
-* Featured products always appear at the top
-* Infinite scrolling loads products dynamically
-* Sorting and filtering work without breaking logic
-
----
-
-## 🚀 Features Implemented
-
-### ✅ Featured Products Handling
-
-* Products with tag `featured` are identified dynamically
-* Maximum 15 featured products are displayed at the top
-* Featured products are never repeated in later scrolls
+The goal is to create a collection page where:
+- Featured products always appear at the top
+- Infinite scroll loads products dynamically
+- Sorting and filtering work correctly
+- No duplicate products appear
 
 ---
 
-### ✅ Infinite Scroll
+## ⚙️ Features Implemented
 
-* Products are loaded using Shopify AJAX API
-  `/collections/{handle}/products.json`
-* 20 products are fetched per request
-* On scroll → next batch loads automatically
-
----
-
-### ✅ Initial Load Logic
-
-* First load:
-
-  * 15 featured products
-  * * 5 normal products
-  * Total = 20 products
+### ✅ 1. Featured Products on Top
+- Products with tag `featured` are identified
+- All 15 featured products are shown at the top
+- Their original position in collection does not matter
 
 ---
 
-### ✅ Duplicate Prevention
-
-* Used a global `Set` (`renderedProductIds`)
-* Ensures no product is rendered twice
-
----
-
-### ✅ Sorting & Filtering
-
-* If `sort_by` or `filter` detected in URL:
-
-  * Custom JS is disabled
-  * Shopify default behavior is used
+### ✅ 2. Initial Load Behavior
+- First load shows:
+  - 15 featured products
+  - 5 normal products
+- Total = 20 products
 
 ---
 
-### ✅ Performance Optimization
-
-* Used `DocumentFragment` for efficient DOM updates
-* Lazy loading enabled for images
-* Debounced scroll event
-
----
-
-## 🧠 Approach
-
-1. Fetch products via Shopify AJAX API
-2. Separate:
-
-   * Featured products
-   * Non-featured products
-3. Store them in different arrays
-4. Render:
-
-   * Featured first
-   * Then non-featured
-5. Infinite scroll loads only non-featured products
+### ✅ 3. Infinite Scroll
+- Loads next 20 products when user scrolls
+- Only non-featured products are loaded in next pages
+- Smooth loading experience using JavaScript
 
 ---
 
-## ⚙️ Tech Stack
-
-* Shopify Liquid
-* JavaScript (Vanilla)
-* Shopify AJAX API
-* CSS
+### ✅ 4. No Duplicate Products
+- A Set is used to track already rendered product IDs
+- Prevents duplicates across pages and scroll loads
 
 ---
 
-## 📂 Folder Structure
+### ✅ 5. Sorting & Filtering Support
+- When sorting or filtering is applied:
+  - Shopify default behavior is used
+  - Featured logic is disabled (as required)
 
-```
-assets/
-  custom.js
-  custom.css
-
-sections/
-  custom-collection.liquid
-```
+- Implemented using:
+  - Query parameters (`sort_by`, `filter.v.price`)
+  - Hidden fallback grid rendered using Liquid
 
 ---
 
-## ⚠️ Edge Cases Handled
+### ✅ 6. UI Consistency Fix
+- Same HTML structure is used for:
+  - Custom infinite scroll
+  - Shopify default rendering
 
-* No featured products → normal infinite scroll
-* Featured products in later pages → ignored
-* Large collections → scalable approach
-* Sorting/filtering → override custom logic
-
----
-
-## 🔗 Live Preview
-
-(https://im2zaj-iu.myshopify.com/)
+- Prevents layout issues during sorting/filtering
 
 ---
 
-## 📌 Notes
+### ✅ 7. Image Handling
+- Fixed image distortion using:
+  - `object-fit: contain`
+  - Centered layout using flexbox
 
-* Built for scalability and performance
-* Handles real-world large product collections
-* Designed to avoid duplication and maintain order
+- Ensures all product images are visible properly
 
 ---
+
+## 🧠 Approach & Logic
+
+### 1. Product Separation
+- Products are fetched using Shopify AJAX API
+- Split into:
+  - Featured products
+  - Non-featured products
+
+---
+
+### 2. Rendering Strategy
+- Featured products rendered first
+- Remaining slots filled with non-featured products
+
+---
+
+### 3. Infinite Scroll Logic
+- Triggered when user reaches bottom
+- Fetch next page using AJAX
+- Append only non-featured products
+
+---
+
+### 4. Duplicate Prevention
+- Used JavaScript `Set`
+- Stores product IDs already rendered
+- Skips duplicates while rendering
+
+---
+
+### 5. Handling Edge Cases
+
+#### 🔹 Case: Featured products appear in later pages
+- Ignored if already shown
+
+#### 🔹 Case: No featured products
+- Normal infinite scroll works
+
+#### 🔹 Case: Filters or sorting applied
+- Switch to Shopify default rendering
+- No custom logic applied (as required)
+
+---
+
+## ⚡ Performance & Scalability
+
+- Uses lazy loading
+- Fetches products in batches (20 per request)
+- Avoids re-rendering same products
+- Efficient for large collections
+
+---
+
+## ⚠️ Limitations
+
+- Shopify Liquid cannot fully control dynamic reordering
+- Hence, JavaScript (AJAX API) is used for full control
+
+---
+
+## 🔗 Links
+
+### Live Preview
+https://im2zaj-iu.myshopify.com/collections/demo-collection
+
+Password: ahwhia
+
+---
+
+### GitHub Repository
+https://github.com/MrSoham24/shopify-featured-infinite-scroll
+
+---
+
+## 🙌 Conclusion
+
+This solution ensures:
+- Correct product ordering
+- Smooth infinite scroll experience
+- Proper handling of sorting and filtering
+- Scalable and clean implementation
